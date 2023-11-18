@@ -1,4 +1,8 @@
-﻿using BookCatalog.Models;
+﻿using AutoMapper;
+using BookCatalog.DbContexts;
+using BookCatalog.Models;
+using BookCatalog.Services;
+using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BookCatalog.Controllers
@@ -7,43 +11,118 @@ namespace BookCatalog.Controllers
     [ApiController]
     public class BooksController : ControllerBase
     {
-        // GET: api/<BooksController>
-        [HttpGet]
-        public ActionResult<IEnumerable<BookDto>> Get()
+        private readonly IBookRepository bookRepository;
+        private readonly IMapper mapper;
+
+        public BooksController(IBookRepository bookRepository, IMapper mapper)
         {
-            return Ok(BooksDataStore.Instance.Books);
+            this.bookRepository = bookRepository ?? throw new ArgumentNullException(nameof(bookRepository));
+            this.mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
         }
 
-        // GET api/<BooksController>/5
-        [HttpGet("{id}")]
-        public ActionResult<BookDto> Get(int id)
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<BookDto>>> GetBooks()
         {
-            var book = BooksDataStore.Instance.Books.FirstOrDefault(b => b.Id == id);
+            var books = await this.bookRepository.GetAllBooksAsync();
+            return Ok(this.mapper.Map<IEnumerable<BookDto>>(books));
+        }
+
+        [HttpGet("{bookId}", Name = "GetBook")]
+        public async Task<ActionResult<BookDto>> GetBook(int bookId)
+        {
+            var book = await bookRepository.GetBookAsync(bookId);
 
             if (book == null)
             {
                 return NotFound();
             }
 
-            return Ok(book);
+            return Ok(this.mapper.Map<BookDto>(book));
         }
 
-        // POST api/<BooksController>
         [HttpPost]
-        public void Post([FromBody] string value)
+        public async Task<ActionResult<BookDto>> CreateBook(BookForCreationDto bookForCreation)
         {
+            var mappedBook = mapper.Map<Entities.Book>(bookForCreation);
+
+            bookRepository.AddBook(mappedBook);
+            await bookRepository.SaveChangesAsync();
+
+            var createdBook = mapper.Map<BookDto>(mappedBook);
+
+            return CreatedAtRoute(
+                "GetBook",
+                new
+                {
+                    bookId = createdBook.Id
+                },
+                createdBook);
         }
 
-        // PUT api/<BooksController>/5
-        [HttpPut("{id}")]
-        public void Put(int id, [FromBody] string value)
+        [HttpPut("bookId")]
+        public async Task<IActionResult> UpdateBook(int bookId, BookForUpdateDto bookForUpdate)
         {
+            if (!await bookRepository.BookExistsAsync(bookId))
+            {
+                return NotFound();
+            }
+
+            var book = await bookRepository.GetBookAsync(bookId);
+
+            mapper.Map(bookForUpdate, book);
+
+            await bookRepository.SaveChangesAsync();
+
+            return NoContent();
         }
 
-        // DELETE api/<BooksController>/5
-        [HttpDelete("{id}")]
-        public void Delete(int id)
+        [HttpPatch("{bookId}")]
+        public async Task<ActionResult> PartiallyUpdateBook(
+            int bookId,
+            JsonPatchDocument<BookForUpdateDto> patchDocument)
         {
+            if (!await bookRepository.BookExistsAsync(bookId))
+            {
+                return NotFound();
+            }
+
+            var bookEntity = await bookRepository.GetBookAsync(bookId);
+
+            var bookToPatch = mapper.Map<BookForUpdateDto>(bookEntity);
+
+            patchDocument.ApplyTo(bookToPatch, ModelState);
+
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            if (!TryValidateModel(bookToPatch))
+            {
+                return BadRequest(ModelState);
+            }
+
+            mapper.Map(bookToPatch, bookEntity);
+
+            await bookRepository.SaveChangesAsync();
+
+            return NoContent();
+        }
+
+        [HttpDelete]
+        public async Task<ActionResult> DeleteBook(int bookId)
+        {
+            if (!await bookRepository.BookExistsAsync(bookId))
+            {
+                return NotFound();
+            }
+
+            var bookEntity = await bookRepository.GetBookAsync(bookId);
+            bookRepository.DeleteBook(bookEntity);
+
+            await bookRepository.SaveChangesAsync();
+
+            return NoContent();
         }
     }
 }
