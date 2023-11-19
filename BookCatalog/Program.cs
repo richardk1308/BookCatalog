@@ -1,4 +1,3 @@
-using BookCatalog;
 using BookCatalog.DbContexts;
 using BookCatalog.Services;
 using Microsoft.EntityFrameworkCore;
@@ -28,7 +27,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.UseRouting();//
+app.UseRouting();
 
 app.UseAuthorization();
 
