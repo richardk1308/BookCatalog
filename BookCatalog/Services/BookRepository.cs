@@ -42,6 +42,5 @@ namespace BookCatalog.Services
         {
             bookContext.Books.Remove(book);
         }
-
     }
 }
