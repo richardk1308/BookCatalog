@@ -1,5 +1,4 @@
 ﻿using BookCatalog.Entities;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace BookCatalog.DbContexts

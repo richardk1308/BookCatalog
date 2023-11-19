@@ -1,5 +1,4 @@
 ﻿using AutoMapper;
-using BookCatalog.DbContexts;
 using BookCatalog.Models;
 using BookCatalog.Services;
 using Microsoft.AspNetCore.JsonPatch;
@@ -59,7 +58,7 @@ namespace BookCatalog.Controllers
                 createdBook);
         }
 
-        [HttpPut("bookId")]
+        [HttpPut("{bookId}")]
         public async Task<IActionResult> UpdateBook(int bookId, BookForUpdateDto bookForUpdate)
         {
             if (!await bookRepository.BookExistsAsync(bookId))
@@ -109,7 +108,7 @@ namespace BookCatalog.Controllers
             return NoContent();
         }
 
-        [HttpDelete]
+        [HttpDelete("{bookId}")]
         public async Task<ActionResult> DeleteBook(int bookId)
         {
             if (!await bookRepository.BookExistsAsync(bookId))
@@ -118,7 +117,7 @@ namespace BookCatalog.Controllers
             }
 
             var bookEntity = await bookRepository.GetBookAsync(bookId);
-            bookRepository.DeleteBook(bookEntity);
+            bookRepository.DeleteBook(bookEntity!);
 
             await bookRepository.SaveChangesAsync();
 
